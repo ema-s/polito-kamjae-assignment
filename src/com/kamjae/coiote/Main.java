@@ -29,9 +29,10 @@ public class Main {
 			p = new Problem(source);
 		}
 		
-		Solution sol = p.greedySearch();
+		Solution sol = p.randomSearch();
 		
 		System.out.println(sol);
+		System.out.println("ELAPSED TIME: " + sol.getElapsedMillis() + " ms");
 		System.out.println("SOURCE: " + source);
 		System.out.println("SOLUTION STATUS: " + p.checkFeasibility(sol));
 		System.out.println("TOTAL COST: " + sol.getTotalCost());

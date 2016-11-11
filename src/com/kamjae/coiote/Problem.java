@@ -3,8 +3,13 @@ package com.kamjae.coiote;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.Random;
 
 public class Problem {
+	
+	private Random random;
 
 	private int nCells;
 	private int nPeriods;
@@ -21,6 +26,7 @@ public class Problem {
 		private int[] fullfilled;
 		private int totalCustomers;
 		private float totalCost;
+		private float elapsedMillis;
 
 		private Solution() {
 			solMatrix = new int[nCells][nCells][nTypes][nPeriods];
@@ -28,6 +34,7 @@ public class Problem {
 			fullfilled = new int[nCells];
 			totalCustomers = 0;
 			totalCost = 0;
+			elapsedMillis = 0;
 
 			// The order is whacky, but with this we can init everything in one loop.		
 			for (int i = 0  ; i < nCells ; i++) {
@@ -46,6 +53,10 @@ public class Problem {
 
 		public float getTotalCost() {
 			return totalCost;
+		}
+		
+		public float getElapsedMillis() {
+			return elapsedMillis;
 		}
 
 		@Override
@@ -146,6 +157,8 @@ public class Problem {
 			ioe.printStackTrace();
 			System.exit(1);
 		}
+		
+		random = new Random();
 	}
 
 	/**
@@ -207,6 +220,45 @@ public class Problem {
 		}
 
 		return greedy;
+	}
+	
+	public Solution randomSearch() {
+		long start = System.nanoTime();
+		Solution randomic = new Solution();
+		LinkedList<Integer> destinations = new LinkedList<Integer>();
+		
+		for (int i = 0 ; i < nCells ; i++) {
+			destinations.add(i);
+		}
+		
+		Collections.shuffle(destinations);
+		
+		for (int j : destinations) {
+			while(randomic.fullfilled[j] < tasksToDo[j] && randomic.totalCustomers > 0) {
+				// Randomize type, source and timeframe
+				int i = random.nextInt(nCells);
+				int m = random.nextInt(nTypes);
+				int t = random.nextInt(nPeriods);
+				
+				if (randomic.unassignedUsers[i][m][t] > 0) {
+					// Find minimum amount of random users to cover all required tasks
+					int required = (int) Math.ceil(((float)(tasksToDo[j] - randomic.fullfilled[j])) / typeTasks[m]);
+					// Clamp required users to the max available
+					int dispatchable = Math.min(required, randomic.unassignedUsers[i][m][t]);
+					int dispatched = dispatchable == 1 ? 1 : random.nextInt(dispatchable - 1) + 1;
+					
+					randomic.unassignedUsers[i][m][t] -= dispatched;
+					randomic.fullfilled[j] += typeTasks[m] * dispatched;
+					randomic.totalCustomers -= dispatched;
+					randomic.totalCost += costs[i][j][m][t] * dispatched;
+					randomic.solMatrix[i][j][m][t] += dispatched;
+				}
+			}
+		}
+		
+		randomic.elapsedMillis = (System.nanoTime() - start) / 1E+6f;
+		
+		return randomic;
 	}
 
 	public Feasibility checkFeasibility(Solution sol) {

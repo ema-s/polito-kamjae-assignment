@@ -117,3 +117,5 @@ dist/
 nbdist/
 .nb-gradle/
 
+# 300-sized input files
+Co_300*
