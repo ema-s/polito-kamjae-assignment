@@ -20,6 +20,11 @@ public class Problem {
 	private int[] tasksToDo;
 	private int[][][] customers;
 
+	// Data to keep track of solution evolution
+	private Solution bestSolution;
+	private Solution[] solutions;
+	private static final int populationSize = 20;
+
 	public class Solution {
 		private int[][][][] solMatrix;
 		private int[][][] unassignedUsers;
@@ -49,6 +54,18 @@ public class Problem {
 					}
 				}
 			}
+		}
+
+		public Solution mutate(){
+			return null;
+		}
+
+		public Solution recombine(Solution s){
+			return null;
+		}
+
+		public void setBest(){
+			totalCost = Float.MAX_VALUE;
 		}
 
 		public float getTotalCost() {
@@ -158,7 +175,33 @@ public class Problem {
 			System.exit(1);
 		}
 		
+		bestSolution = new Solution();
+		bestSolution.setBest();
+		solutions = new Solution[populationSize];
 		random = new Random();
+	}
+
+	public Solution solveProblem(){
+		// solveProblem is the only function called by Main
+		// Inside we do all computation
+		long start = System.nanoTime();
+
+		int missingSolutions = 0;
+		while(missingSolutions < populationSize){
+			Solution s = randomSearch();
+			Feasibility f = checkFeasibility(s);
+			System.out.println(f);
+			if(f == Feasibility.FEASIBLE){
+				System.out.println("Cost " + missingSolutions + ": " + s.getTotalCost());
+				solutions[missingSolutions] = s;
+				missingSolutions++;
+				if(s.getTotalCost() <= bestSolution.getTotalCost())
+					bestSolution = s;
+			}
+		}
+
+		bestSolution.elapsedMillis = (System.nanoTime() - start) / 1E+6f;
+		return bestSolution;
 	}
 
 	/**
@@ -221,9 +264,101 @@ public class Problem {
 
 		return greedy;
 	}
+
+	public Solution randomSolveFast(){
+		Solution random = new Solution();
+		LinkedList<Integer> listJ = new LinkedList<>();
+		for(int i = 0; i < nCells; i++)
+			listJ.add(i);	
+  		Collections.shuffle(listJ);
+
+	    while (!listJ.isEmpty()) {
+	    	int j = listJ.pop();
+	        int demand = tasksToDo[j];
+	        boolean notSatisfied = true;
+	        for (int i = 0; i < nCells && notSatisfied; i++) {
+	            for (int m = 0; m < nTypes && notSatisfied; m++) {
+	                for (int t = 0; t < nPeriods && notSatisfied; t++) {
+	                	int assignableUsers = random.unassignedUsers[i][m][t] - 1;
+	                    int tasksPerUser = typeTasks[m];
+	                    int totalTasks = assignableUsers * tasksPerUser;
+	                    if (i != j && assignableUsers > 0) {
+                    		if (demand > totalTasks) {
+	                        	// Assign all the users in there
+	                            random.solMatrix[i][j][m][t] += assignableUsers;
+	                            random.totalCustomers -= assignableUsers;
+	                            random.fullfilled[j] += totalTasks;
+	                            random.unassignedUsers[i][m][t] = 0;
+
+	                            demand -= totalTasks;
+	                        }
+	                        else {
+	                        	int necessaryUsers = (int)(demand / typeTasks[m]) + 1;
+	                            random.solMatrix[i][j][m][t] += necessaryUsers;
+	                            random.totalCustomers -= necessaryUsers;
+	                            random.fullfilled[j] += demand;
+	             				random.unassignedUsers[i][m][t] -= necessaryUsers;
+
+	                            demand = 0;
+	                            notSatisfied = false;
+	                        }
+	                        random.totalCost += random.solMatrix[i][j][m][t] * costs[i][j][m][t];
+                    	}                
+	                }
+	            }
+	        }
+	    }
+	    return random;
+	}
+
+	public Solution randomStartGreedySearch(){
+		Solution random = new Solution();
+		LinkedList<Integer> listJ = new LinkedList<>();
+		for(int i = 0; i < nCells; i++)
+			listJ.add(i);	
+  		Collections.shuffle(listJ);
+  		while(!listJ.isEmpty() && random.totalCustomers > 0){
+  			int j = listJ.pop();
+
+			while(random.fullfilled[j] < tasksToDo[j] && random.totalCustomers > 0) {
+				float wBestCost = Float.POSITIVE_INFINITY;
+				int[] bestUser = {-1, -1, -1};
+				for (int i = 0 ; i < nCells ; i++) {
+					if (i != j){
+						for (int m = 0 ; m < nTypes ; m++) {
+							for (int t = 0 ; t < nPeriods ; t++) {
+								if (random.unassignedUsers[i][m][t] > 0 && costs[i][j][m][t] / typeTasks[m] < wBestCost) {
+									wBestCost = costs[i][j][m][t] / typeTasks[m];
+									bestUser[0] = i;
+									bestUser[1] = m;
+									bestUser[2] = t;
+								}
+							}
+						}
+					}				
+				}
+
+				int iBest = bestUser[0];
+				int mBest = bestUser[1];
+				int tBest = bestUser[2];
+				
+				// Find minimum amount of cheap users to cover all required tasks
+				int required = (int) Math.ceil(((float)(tasksToDo[j] - random.fullfilled[j])) / typeTasks[mBest]);
+				// Clamp required users to the max available
+				int dispatchable = Math.min(required, random.unassignedUsers[iBest][mBest][tBest]);
+
+				// Actually assign the correct number of users to cell J
+				random.unassignedUsers[iBest][mBest][tBest] -= dispatchable;
+				random.fullfilled[j] += typeTasks[mBest] * dispatchable;
+				random.totalCustomers -= dispatchable;
+				random.totalCost += costs[iBest][j][mBest][tBest] * dispatchable;
+				random.solMatrix[iBest][j][mBest][tBest] += dispatchable;
+			}
+  		}
+		return random;
+	}
 	
 	public Solution randomSearch() {
-		long start = System.nanoTime();
 		Solution randomic = new Solution();
 		LinkedList<Integer> destinations = new LinkedList<Integer>();
 		
@@ -254,10 +389,7 @@ public class Problem {
 					randomic.solMatrix[i][j][m][t] += dispatched;
 				}
 			}
-		}
-		
-		randomic.elapsedMillis = (System.nanoTime() - start) / 1E+6f;
-		
+		}		
 		return randomic;
 	}
 
