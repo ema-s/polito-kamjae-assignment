@@ -29,7 +29,7 @@ public class Main {
 			p = new Problem(source);
 		}
 		
-		Solution sol = p.randomSearch();
+		Solution sol = p.solveProblem();
 		
 		System.out.println(sol);
 		System.out.println("ELAPSED TIME: " + sol.getElapsedMillis() + " ms");
