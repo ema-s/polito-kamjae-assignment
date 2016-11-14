@@ -4,12 +4,10 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 
-import com.kamjae.coiote.Problem.Solution;
-
 public class Main {
 
 	public static void main(String[] args) {
-		Problem p;
+		GAProblem p;
 		String source = null;
 		String optimal = null;
 		
@@ -26,28 +24,29 @@ public class Main {
 			printHelp();
 			return;
 		} else {
-			p = new Problem(source);
+			p = new GAProblem(source);
 		}
-		
-		Solution sol = p.solveProblem();
-		
-		System.out.println(sol);
-		System.out.println("ELAPSED TIME: " + sol.getElapsedMillis() + " ms");
+
+		GASolution sol = p.solveProblem();
+
+		//System.out.println(sol);
 		System.out.println("SOURCE: " + source);
-		System.out.println("SOLUTION STATUS: " + p.checkFeasibility(sol));
-		System.out.println("TOTAL COST: " + sol.getTotalCost());
+		System.out.println("TOTAL COST: " + sol.getCost());
 		
 		// Compare found cost with optimal solution and compute the optimality gap
 		if (optimal != null) {
 			try {	
 				BufferedReader in = new BufferedReader(new FileReader(optimal));
 				String line;
-				
+				String instance = ((source.split("/")[1]).split(".txt"))[0];
 				while ((line = in.readLine()) != null) {
 					String[] vals = line.split(String.format(";\t"));
-					if (source.contains(vals[0])) {
+					if (vals[0].equals(instance)) {
 						float opCost = Float.parseFloat(vals[2]);
-						float opGap = (sol.getTotalCost() - opCost) / opCost * 100;
+						System.out.println("FILE: " + instance);
+						System.out.println("OPTIMAL COST: " + opCost);
+						System.out.println("MY COST: " + sol.getCost());
+						float opGap = (sol.getCost() - opCost) / opCost * 100;
 						System.out.println("OPTIMALITY GAP: " + opGap + "%");
 						break;
 					}
