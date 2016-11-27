@@ -107,18 +107,36 @@ public class GA
     /** do a random mutation on given chromosome */
     public void doRandomMutation(int iChromIndex){
         byte rNewGene;
+        int i, j, m, t;
+        do{
+            i = getRandom(nCells);
+            j = getRandom(nCells);
+            m = getRandom(nTypes);
+            t = getRandom(nPeriods);
+        } while(this.chromosomes[iChromIndex].genes[i][j][m][t] == 0);     
 
-        int i = getRandom(nCells);
-        int j = getRandom(nCells);
-        int m = getRandom(nTypes);
-        int t = getRandom(nPeriods);
-
-        rNewGene = (this.chromosomes[iChromIndex]).genes[i][j][m][t];
-        if (getRandom(100) > 50)
-            rNewGene = (byte)((rNewGene + (byte)(rNewGene * getRandom(1000) / 1000)) % Byte.MAX_VALUE);
-        else
-            rNewGene = (byte)(rNewGene - (byte)(rNewGene * getRandom(1000) / 1000));
-
+        rNewGene = this.chromosomes[iChromIndex].genes[i][j][m][t];
+        // How much will the value change?
+        byte change = (byte)(rNewGene * getRandom(1000) / 1000);
+        if (getRandom(100) > 50){
+            rNewGene = (byte)((rNewGene + change) % Byte.MAX_VALUE);
+            // If i added some customers of type M at time T to cell J from cell I
+            // i need to remove from another J an equal amount of type M time T from cell I
+            // to keep the contraint of UNF_USERS
+            do{
+                j = getRandom(nCells);
+            } while(this.chromosomes[iChromIndex].genes[i][j][m][t] < change);
+            // This will for sure trigger a UNF_DEMAND
+            this.chromosomes[iChromIndex].genes[i][j][m][t] -= change;
+        }
+        else{
+            rNewGene = (byte)(rNewGene - change);
+            // If i removed some customers from J, i have to add them 
+            // from somewhere else to keep the contraint of
+            // UNF_DEMAND
+            // I don't know how to do that currently, i will need availableUsers
+        }
+        
         this.chromosomes[iChromIndex].genes[i][j][m][t] = rNewGene;
     }
     
@@ -438,6 +456,8 @@ public class GA
 
         iGen = 0;
         initPopulation();
+        if(1 == 1)
+                    return 1;
         //Add Preliminary Solutions to list box
         addSolutionsToLog(0, 10);
         while (iGen < maxGenerations)

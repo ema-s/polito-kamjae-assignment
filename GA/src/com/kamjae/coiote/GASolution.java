@@ -20,10 +20,10 @@ public class GASolution
         this.nPeriods = periods;
         this.genes = new byte[nCells][nCells][nTypes][nPeriods];
 
-        if(Math.random() < 0.3)
+        //if(Math.random() < 0.1)
             initGreedy();
-        else
-            initRandom();
+        //else
+        //    initRandom();
         // for (int i = 0; i < nCells; i++)
         //     for (int j = 0; j < nCells; j++)
         //         for (int m = 0; m < nTypes; m++)
@@ -57,12 +57,14 @@ public class GASolution
             while(tasksLeft > 0) {
                 float wBestCost = Float.POSITIVE_INFINITY;
                 int[] bestUser = {-1, -1, -1};
-                for (int i = 0 ; i < nCells ; i++) {
+                for (int i = 0; i < nCells; i++) {
                     if (i != j){
+                        // find the minimum among J M T and just go there
                         for (int m = 0 ; m < nTypes ; m++) {
                             for (int t = 0 ; t < nPeriods ; t++) {
-                                if (availableUsers[i][m][t] > 0 && GA.costs[i][j][m][t] / GA.typeTasks[m] < wBestCost) {
-                                    wBestCost = GA.costs[i][j][m][t] / GA.typeTasks[m];
+                                float cost = GA.costs[i][j][m][t] / GA.typeTasks[m];
+                                if (availableUsers[i][m][t] > 0 && cost < wBestCost) {
+                                    wBestCost = cost;
                                     bestUser[0] = i;
                                     bestUser[1] = m;
                                     bestUser[2] = t;
@@ -226,7 +228,7 @@ public class GASolution
     public void setFitness(){
         // LA FITNESS E' INVERSA, A BASSO FITNESS CORRISPONDE ALTO RANKING
         if(!this.isFeasible()){
-            fitness = Double.MAX_VALUE;
+            this.fitness = Double.MAX_VALUE;
         } else{
             this.fitness =  this.getCost();
         }

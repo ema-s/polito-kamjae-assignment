@@ -17,6 +17,10 @@ public class GAProblem {
 	private byte[][][] customers;
 	private float[][][][] costs;
 
+	// DEBUG
+	private int emptyIMT;
+	private int emptyJ;
+
 	public GAProblem(String inputFile) {
 		BufferedReader in;
 
@@ -60,10 +64,17 @@ public class GAProblem {
 
 			in.readLine();
 
+			emptyIMT = 0;
+			emptyJ = 0;
+
 			// Read and parse the tasks to do
 			line = in.readLine().split(" ");
-			for (int i = 0 ; i < nCells ; i++)
+			for (int i = 0 ; i < nCells ; i++){
 				tasksToDo[i] = Byte.parseByte(line[i]);
+				if(tasksToDo[i] == 0){
+					emptyJ++;
+				}
+			}
 
 			in.readLine();
 
@@ -77,10 +88,15 @@ public class GAProblem {
 
 				for (int i = 0 ; i < nCells ; i++) {
 					customers[i][m][t] = Byte.parseByte(line[i]);
+					if(customers[i][m][t] == 0){
+						emptyIMT++;
+					}
 				}
 			}
 
 			in.close();			
+			System.out.println("EMPTY J = " + emptyJ);
+			System.out.println("EMPTY IMT = " + emptyIMT);
 		} catch (IOException ioe) {
 			System.err.println("Unable to read file: " + inputFile);
 			ioe.printStackTrace();
@@ -94,14 +110,14 @@ public class GAProblem {
 		long start = System.nanoTime();
 
 		GA coiote = new GA(  
-                20, //population has N chromosomes
-                0.8, //crossover probability
-                50, //random selection chance % (regardless of fitness)
-                5, //max generations
+                1, //population has N chromosomes
+                0.7, //crossover probability
+                30, //random selection chance % (regardless of fitness)
+                1, //max generations
                 0, //num prelim runs (to build good breeding stock for final/full run)
                 0, //max generations per prelim run
-                0.1, //chromosome mutation prob.
-                GACrossover.ctRoulette, //crossover type
+                0.05, //chromosome mutation prob.
+                GACrossover.ctOnePoint, //crossover type
                 false,
                 nCells,
                 nTypes,
