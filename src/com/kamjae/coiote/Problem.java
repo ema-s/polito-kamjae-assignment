@@ -21,7 +21,7 @@ public class Problem {
 	private int nTypes;
 
 	private int[] typeTasks;	// Tasks each customer type can do
-	private short[][][][] costs;
+	private int[][][][] costs;
 	private int[] tasksToDo;
 	private HashMap<User, Integer> customers;
 
@@ -29,9 +29,9 @@ public class Problem {
 	private Solution bestSolution;
 	
 	private class AnnealingParams {
-		public static final int DEFAULT_MAX_ITERATIONS = 50;
+		public static final int DEFAULT_MAX_ITERATIONS = 5000;
 		
-		private static final float DEFAULT_ALPHA = 0.98f;
+		private static final float DEFAULT_ALPHA = 0.90f;
 		private static final int DEFAULT_GAMMA = 15;
 		
 		public float alpha;
@@ -134,10 +134,8 @@ public class Problem {
 		private Solution(Solution source) {
 			allocate();
 			
-			for (HashMap<User, Integer> l : source.solMatrix) {
-				HashMap<User, Integer> newMap = new HashMap<User, Integer>();
-				newMap.putAll(l);
-				solMatrix.add(newMap);
+			for (int i = 0 ; i < nCells ; i++) {
+				solMatrix.get(i).putAll(source.solMatrix.get(i));
 			}
 
 			totalCustomers = source.totalCustomers;
@@ -179,7 +177,75 @@ public class Problem {
 		}
 		
 		public void generateRandomNeighborhood() {
-			// TODO	
+			for (int i = 0 ; i < nCells ; i++) {
+				HashMap<User, Integer> from = solMatrix.get(i);
+				
+				if (tasksToDo[i] == 0)
+					continue;
+				
+				for (int j = i + 1 ; j < nCells ; j++) {
+					if (tasksToDo[j] == 0)
+						continue;
+					
+					HashMap<User, Integer> to = solMatrix.get(j);
+					neighborhood.add(generateMove(from, to, i, j));
+				}
+				
+				neighborhood.add(generateMove(from, unassignedUsers, i, -1));
+			}
+		}
+		
+		private Move generateMove(HashMap<User, Integer> from, HashMap<User, Integer> to, int i, int j) {
+			User u1Best = null;
+			float wCost = 0;
+			float wBestCost = Float.POSITIVE_INFINITY;
+			
+			if (j == -1) {
+				// Find most expensive in this list to get out
+				wBestCost = 0;
+				for (User u1 : from.keySet()) {
+					wCost = costs[u1.i][i][u1.m][u1.t] / typeTasks[u1.m];
+					if (wCost > wBestCost) {
+						wCost = wBestCost;
+						u1Best = u1;
+					}
+				}
+			} else {
+				// Find cheapest for to list to get out
+				for (User u1 : from.keySet()) {
+					wCost = costs[u1.i][j][u1.m][u1.t] / typeTasks[u1.m];
+					if (wCost < wBestCost) {
+						wCost = wBestCost;
+						u1Best = u1;
+					}
+				}
+			}
+			
+			User u2Best = null;
+			wCost = 0;
+			wBestCost = Float.POSITIVE_INFINITY;
+			
+			for (User u2 : to.keySet()) {
+				wCost = costs[u2.i][i][u2.m][u2.t] / typeTasks[u2.m];
+				if (wCost < wBestCost) {
+					wCost = wBestCost;
+					u2Best = u2;
+				}
+			}
+			
+			float newCost = 0;
+			
+			if (j == -1) {
+				newCost = totalCost - costs[u1Best.i][i][u1Best.m][u1Best.t]
+									+ costs[u2Best.i][i][u2Best.m][u2Best.t];
+			} else {
+				newCost = totalCost - costs[u1Best.i][i][u1Best.m][u1Best.t]
+									- costs[u2Best.i][j][u2Best.m][u2Best.t]
+									+ costs[u1Best.i][j][u1Best.m][u1Best.t]
+									+ costs[u2Best.i][i][u2Best.m][u2Best.t];
+			}
+			
+			return new Move(i, j, u1Best, u2Best, newCost);
 		}
 		
 		public Solution apply(Move m) {
@@ -197,8 +263,8 @@ public class Problem {
 			
 			Integer fromCnt1 = from.get(m.user1);
 			Integer fromCnt2 = from.get(m.user2);
-			Integer toCnt1 = from.get(m.user1);
-			Integer toCnt2 = from.get(m.user2);
+			Integer toCnt1 = to.get(m.user1);
+			Integer toCnt2 = to.get(m.user2);
 			
 			if (fromCnt1 == 1) {
 				// Source has only ONE User1. Remove mapping
@@ -256,7 +322,7 @@ public class Problem {
 			nTypes = Integer.parseInt(line[2]);
 
 			typeTasks = new int[nTypes];
-			costs = new short[nCells][nCells][nTypes][nPeriods];
+			costs = new int[nCells][nCells][nTypes][nPeriods];
 			tasksToDo = new int[nCells];
 			customers = new HashMap<User, Integer>();
 
@@ -279,7 +345,7 @@ public class Problem {
 				for (int i = 0; i < nCells ; i++) {
 					line = in.readLine().split(" ");
 					for (int j = 0 ; j < nCells ; j++) {
-						costs[i][j][m][t] = (short)Math.floor(Double.parseDouble(line[j]));
+						costs[i][j][m][t] = (int)Math.floor(Double.parseDouble(line[j]));
 					}
 				}
 			}
@@ -335,27 +401,34 @@ public class Problem {
 	}
 	
 	private void simulateAnnealing(int maxIterations, int maxMillis) {
-		//long start = System.currentTimeMillis();
+		long start = System.currentTimeMillis();
 		
 		Solution currentSolution = bestSolution;
 		currentSolution.generateRandomNeighborhood();
 		AnnealingParams params = new AnnealingParams(bestSolution);
 		
 		for (int c = 0 ; c < maxIterations ; c++) {
-			//if (System.currentTimeMillis() - start >= maxMillis)
-				//break;
+			if (System.currentTimeMillis() - start >= maxMillis)
+				break;
 			
-			if (currentSolution.neighborhood.isEmpty())
-				currentSolution.generateRandomNeighborhood();
+			if (currentSolution.neighborhood.isEmpty()) {
+				System.err.println("Dafuq empty neighborhood");
+				System.exit(1);
+			}
+				
 			
 			for (Move m : currentSolution.neighborhood) {
-				if (m.newCost < currentSolution.totalCost) {
+				if (m.newCost < bestSolution.totalCost) {
 					currentSolution = currentSolution.apply(m);
+					currentSolution.generateRandomNeighborhood();
 					bestSolution = currentSolution;
+					break;
 				} else {
 					double acceptance = Math.exp((currentSolution.totalCost - m.newCost) / params.getT(c));
 					if (random.nextDouble() < acceptance) {
 						currentSolution = currentSolution.apply(m);
+						currentSolution.generateRandomNeighborhood();
+						break;
 					}
 				}
 			}
@@ -363,7 +436,7 @@ public class Problem {
 	}
 	
 	private void assignAllPossible(User u, Solution s, int cell, Iterator<User> it) {
-		int required = (int)Math.ceil((double)(tasksToDo[cell] - s.fullfilled[cell]) / typeTasks[u.m]);
+		int required = (int)Math.ceil(((double)(tasksToDo[cell] - s.fullfilled[cell])) / typeTasks[u.m]);
 		int assignable = s.unassignedUsers.get(u);
 		int assigned = 0;
 		
