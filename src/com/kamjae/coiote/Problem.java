@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.ArrayList;
@@ -20,9 +21,9 @@ public class Problem {
 	private int nTypes;
 
 	private int[] typeTasks;	// Tasks each customer type can do
-	private float[][][][] costs;
+	private short[][][][] costs;
 	private int[] tasksToDo;
-	private ArrayList<User> customers;
+	private HashMap<User, Integer> customers;
 
 	// Data to keep track of solution evolution
 	private Solution bestSolution;
@@ -100,8 +101,8 @@ public class Problem {
 	}
 
 	public class Solution {
-		private ArrayList<ArrayList<User>> solMatrix;
-		private ArrayList<User> unassignedUsers;
+		private ArrayList<HashMap<User, Integer>> solMatrix;
+		private HashMap<User, Integer> unassignedUsers;
 		private int[] fullfilled;
 		private int totalCustomers;
 		private float totalCost;
@@ -111,13 +112,13 @@ public class Problem {
 		private Solution() {
 			allocate();
 			
-			unassignedUsers.addAll(customers);
+			unassignedUsers.putAll(customers);
 			totalCustomers = customers.size();
 		}
 		
 		private void allocate() {
-			solMatrix = new ArrayList<ArrayList<User>>();
-			unassignedUsers = new ArrayList<User>();
+			solMatrix = new ArrayList<HashMap<User, Integer>>();
+			unassignedUsers = new HashMap<User, Integer>();
 			fullfilled = new int[nCells];
 			totalCustomers = 0;
 			totalCost = 0;
@@ -126,22 +127,22 @@ public class Problem {
 			
 			for (int i = 0 ; i < nCells ; i++) {
 				fullfilled[i] = 0;
-				solMatrix.add(new ArrayList<User>());
+				solMatrix.add(new HashMap<User, Integer>());
 			}
 		}
 		
 		private Solution(Solution source) {
 			allocate();
 			
-			for (ArrayList<User> l : source.solMatrix) {
-				ArrayList<User> newList = new ArrayList<User>();
-				newList.addAll(l);
-				solMatrix.add(newList);
+			for (HashMap<User, Integer> l : source.solMatrix) {
+				HashMap<User, Integer> newMap = new HashMap<User, Integer>();
+				newMap.putAll(l);
+				solMatrix.add(newMap);
 			}
 
 			totalCustomers = source.totalCustomers;
 			totalCost = source.totalCost;
-			unassignedUsers.addAll(source.unassignedUsers);
+			unassignedUsers.putAll(source.unassignedUsers);
 			
 			for (int i = 0 ; i < nCells ; i++) {
 				fullfilled[i] = source.fullfilled[i];
@@ -164,13 +165,13 @@ public class Problem {
 		public String toString(){
 			String output = "";
 			
-			for (ArrayList<User> j : solMatrix) {
+			for (HashMap<User, Integer> j : solMatrix) {
 				if (j.size() == 0)
 					continue;
 				
 				output += "Cell " + solMatrix.indexOf(j) + "\n";
-				for (User u : j) {
-					output += u.toString() + "\n";
+				for (User u : j.keySet()) {
+					output += u.toString() + ": " + j.get(u) + "\n";
 				}
 			}
 			
@@ -184,8 +185,8 @@ public class Problem {
 		public Solution apply(Move m) {
 			Solution s = new Solution(this);
 			
-			ArrayList<User> from = s.solMatrix.get(m.j0);
-			ArrayList<User> to;
+			HashMap<User, Integer> from = s.solMatrix.get(m.j0);
+			HashMap<User, Integer> to;
 			
 			if (m.j1 == -1) {
 				// -1 is a coding to say "Use the unassigned pool"
@@ -194,10 +195,42 @@ public class Problem {
 				to = s.solMatrix.get(m.j1);
 			}
 			
-			from.remove(m.user1);
-			from.add(m.user2);
-			to.remove(m.user2);
-			to.add(m.user1);
+			Integer fromCnt1 = from.get(m.user1);
+			Integer fromCnt2 = from.get(m.user2);
+			Integer toCnt1 = from.get(m.user1);
+			Integer toCnt2 = from.get(m.user2);
+			
+			if (fromCnt1 == 1) {
+				// Source has only ONE User1. Remove mapping
+				from.remove(m.user1);
+			} else {
+				// Source has > 1 User1. Decrease.
+				from.put(m.user1, fromCnt1 - 1);
+			}
+			
+			if (fromCnt2 == null) {
+				// No mapping in source for User2. Add mapping
+				from.put(m.user2, 1);
+			} else {
+				// There is a previous mapping in source for User2. Update count.
+				from.put(m.user2, fromCnt2 + 1);
+			}
+			
+			if (toCnt1 == null) {
+				// No mapping in destination for User1. Add mapping.
+				to.put(m.user1, 1);
+			} else {
+				// Existing mapping for User1 in destination. Update count.
+				to.put(m.user2, toCnt1 + 1);
+			}
+			
+			if (toCnt2 == 1) {
+				// Destination has only ONE User2. Remove mapping.
+				to.remove(m.user2);
+			} else {
+				// Destination has >1 User2. Update count.
+				to.put(m.user2, toCnt2 - 1);
+			}
 			
 			s.totalCost = m.newCost;
 			return s;
@@ -223,9 +256,9 @@ public class Problem {
 			nTypes = Integer.parseInt(line[2]);
 
 			typeTasks = new int[nTypes];
-			costs = new float[nCells][nCells][nTypes][nPeriods];
+			costs = new short[nCells][nCells][nTypes][nPeriods];
 			tasksToDo = new int[nCells];
-			customers = new ArrayList<User>();
+			customers = new HashMap<User, Integer>();
 
 			in.readLine();
 
@@ -246,7 +279,7 @@ public class Problem {
 				for (int i = 0; i < nCells ; i++) {
 					line = in.readLine().split(" ");
 					for (int j = 0 ; j < nCells ; j++) {
-						costs[i][j][m][t] = Float.parseFloat(line[j]);
+						costs[i][j][m][t] = (short)Math.floor(Double.parseDouble(line[j]));
 					}
 				}
 			}
@@ -270,8 +303,8 @@ public class Problem {
 
 				for (int i = 0 ; i < nCells ; i++) {
 					int count = Integer.parseInt(line[i]);
-					for (int j = 0 ; j < count ; j++)
-						customers.add(new User(i, m, t));
+					if (count == 0) continue;
+					customers.put(new User(i, m, t), count);
 				}
 			}
 
@@ -291,7 +324,10 @@ public class Problem {
 		// Inside we do all computation
 		long start = System.nanoTime();
 
-		bestSolution = randomStartGreedySearch();
+		bestSolution = greedySearch();
+		//bestSolution = randomSearch();
+		//bestSolution = randomStartGreedySearch();
+		//bestSolution = randomSolveFast();
 		//simulateAnnealing(AnnealingParams.DEFAULT_MAX_ITERATIONS, SIMULATION_THRESHOLD);
 
 		bestSolution.elapsedMillis = (System.nanoTime() - start) / 1E+6f;
@@ -325,6 +361,47 @@ public class Problem {
 			}
 		}
 	}
+	
+	private void assignAllPossible(User u, Solution s, int cell, Iterator<User> it) {
+		int required = (int)Math.ceil((double)(tasksToDo[cell] - s.fullfilled[cell]) / typeTasks[u.m]);
+		int assignable = s.unassignedUsers.get(u);
+		int assigned = 0;
+		
+		if (assignable <= required) {
+			// Assign all available users
+			assigned = assignable;
+			if (it != null) {
+				it.remove();
+			} else {
+				s.unassignedUsers.remove(u);
+			}
+		} else {
+			// Assign only required users
+			assigned = required;
+			s.unassignedUsers.put(u, assignable - required);
+		}
+		
+		HashMap<User, Integer> cellMap = s.solMatrix.get(cell);
+		Integer currentAssignmentInCell = cellMap.get(u);
+		
+		if (currentAssignmentInCell == null) {
+			// No previous assignment for best user
+			cellMap.put(u, assigned);
+		} else {
+			// Existing assignment for best user
+			cellMap.put(u, currentAssignmentInCell + assigned);
+		}
+
+		// Actually assign the correct number of users to cell J
+		s.fullfilled[cell] += typeTasks[u.m] * assigned;
+		s.totalCustomers -= assigned;
+		s.totalCost += costs[u.i][cell][u.m][u.t] * assigned;
+		System.out.println(String.format("CHEAPEST: %s | ASSIGNED TO %d: %d", u, cell, assigned));
+	}
+	
+	private void assignAllPossible(User u, Solution s, int cell){
+		assignAllPossible(u, s, cell, null);
+	}
 
 	/**
 	 * Uses Greedy Search to find a solution to the problem. To do that it scans each 
@@ -349,7 +426,7 @@ public class Problem {
 				float wBestCost = Float.POSITIVE_INFINITY;
 				User bestUser = null;
 				
-				for (User u : greedy.unassignedUsers) {
+				for (User u : greedy.unassignedUsers.keySet()) {
 					if (u.i == j)
 						continue;
 					
@@ -359,14 +436,8 @@ public class Problem {
 						bestUser = u;
 					}
 				}
-
-				// Actually assign the correct number of users to cell J
-				greedy.unassignedUsers.remove(bestUser);
-				greedy.fullfilled[j] += typeTasks[bestUser.m];
-				greedy.totalCustomers--;
-				greedy.totalCost += costs[bestUser.i][j][bestUser.m][bestUser.t];
-				greedy.solMatrix.get(j).add(bestUser);
-				System.out.println(String.format("CHEAPEST: %s | ASSIGNED TO %d: %d", bestUser, j));
+				
+				assignAllPossible(bestUser, greedy, j);
 			}
 		}
 
@@ -383,23 +454,14 @@ public class Problem {
 
 	    while (!listJ.isEmpty()) {
 	    	int j = listJ.pop();
-	        int demand = tasksToDo[j];
 	        
-	        for (Iterator<User> it = random.unassignedUsers.iterator() ; it.hasNext() ;) {
-	        	User u = it.next();
-	        	int tasksPerUser = typeTasks[u.m];
-	        	
-	        	if (u.i == j)
-	        		continue;
-	        	
-	        	random.solMatrix.get(j).add(u);
-	        	random.totalCustomers--;
-	        	random.fullfilled[j] += tasksPerUser;
-	        	demand -= tasksPerUser;
-	        	it.remove();
-	        	
-	        	if (demand <= 0)
+	        for (Iterator<User> it = random.unassignedUsers.keySet().iterator() ; it.hasNext() ;) {
+	        	if (random.fullfilled[j] < tasksToDo[j] && random.totalCustomers > 0) {
+		        	User u = it.next();
+		        	assignAllPossible(u, random, j, it);	
+	        	} else {
 	        		break;
+	        	}	        	
 	        }	
 	    }
 	    return random;
@@ -419,7 +481,7 @@ public class Problem {
 				float wBestCost = Float.POSITIVE_INFINITY;
 				User bestUser = null;
 				
-				for (User u : random.unassignedUsers) {
+				for (User u : random.unassignedUsers.keySet()) {
 					if (u.i == j)
 						continue;
 					
@@ -430,12 +492,7 @@ public class Problem {
 					}
 				}
 
-				// Actually assign the correct number of users to cell J
-				random.unassignedUsers.remove(bestUser);
-				random.fullfilled[j] += typeTasks[bestUser.m];
-				random.totalCustomers--;
-				random.totalCost += costs[bestUser.i][j][bestUser.m][bestUser.t];
-				random.solMatrix.get(j).add(bestUser);
+				assignAllPossible(bestUser, random, j);
 			}
   		}
 		return random;
@@ -454,18 +511,14 @@ public class Problem {
 		for (int j : destinations) {
 			while(randomic.fullfilled[j] < tasksToDo[j] && randomic.totalCustomers > 0) {
 				// Randomize type, source and timeframe
-				int k = random.nextInt(randomic.unassignedUsers.size());
-				User u = randomic.unassignedUsers.get(k);
+				int k = random.nextInt(randomic.unassignedUsers.keySet().size());
+				User u = (User)randomic.unassignedUsers.keySet().toArray()[k];
 				
 				if (u.i == j) {
 					continue;		// WARNING! This may cause an infinite loop if all users are in j!
 				}
 				
-				randomic.unassignedUsers.remove(k);
-				randomic.fullfilled[j] += typeTasks[u.m];
-				randomic.totalCustomers--;
-				randomic.totalCost += costs[u.i][j][u.m][u.t];
-				randomic.solMatrix.get(j).add(u);
+				assignAllPossible(u, randomic, j);
 			}
 		}		
 		return randomic;
