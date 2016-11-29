@@ -29,26 +29,31 @@ public class Main {
 			p = new Problem(source);
 		}
 		
-		Solution sol = p.altruisticGreedySearch();
+		Solution sol = p.solve();
 		
-		System.out.println(sol);
-		System.out.println("ELAPSED TIME: " + sol.getElapsedMillis() + " ms");
-		System.out.println("SOURCE: " + source);
-		System.out.println("SOLUTION STATUS: " + p.checkFeasibility(sol));
-		System.out.println("TOTAL COST: " + sol.getTotalCost());
+		//System.out.println(sol);
+		//System.out.println("ELAPSED TIME: " + sol.getElapsedMillis() + " ms");
+		//System.out.println("SOURCE: " + source);
+		//System.out.println("SOLUTION STATUS: " + p.checkFeasibility(sol));
+		//System.out.println("TOTAL COST: " + sol.getTotalCost());
 		
 		// Compare found cost with optimal solution and compute the optimality gap
 		if (optimal != null) {
 			try {	
 				BufferedReader in = new BufferedReader(new FileReader(optimal));
 				String line;
-				
+				String instance = ((source.split("/")[2]).split(".txt"))[0];
+				System.out.println(instance);
 				while ((line = in.readLine()) != null) {
 					String[] vals = line.split(String.format(";\t"));
-					if (source.contains(vals[0])) {
+					if (vals[0].equals(instance)) {
 						float opCost = Float.parseFloat(vals[2]);
+						System.out.println("FILE: " + instance);
+						System.out.println("OPTIMAL COST: " + opCost);
+						System.out.println("MY COST: " + sol.getTotalCost());
 						float opGap = (sol.getTotalCost() - opCost) / opCost * 100;
 						System.out.println("OPTIMALITY GAP: " + opGap + "%");
+						System.out.println("ELAPSED TIME: " + sol.getElapsedMillis() + " ms");
 						break;
 					}
 				}

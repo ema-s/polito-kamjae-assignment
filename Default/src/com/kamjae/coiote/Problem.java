@@ -16,7 +16,7 @@ public class Problem {
 	private int nTypes;
 
 	private int[] typeTasks;	// Tasks each customer type can do
-	private float[][][][] costs;
+	private int[][][][] costs;
 	private int[] tasksToDo;
 	private int[][][] customers;
 
@@ -25,8 +25,8 @@ public class Problem {
 		private int[][][] unassignedUsers;
 		private int[] fullfilled;
 		private int totalCustomers;
-		private float totalCost;
-		private float elapsedMillis;
+		private int totalCost;
+		private int elapsedMillis;
 
 		private Solution() {
 			solMatrix = new int[nCells][nCells][nTypes][nPeriods];
@@ -51,11 +51,11 @@ public class Problem {
 			}
 		}
 
-		public float getTotalCost() {
+		public int getTotalCost() {
 			return totalCost;
 		}
 		
-		public float getElapsedMillis() {
+		public int getElapsedMillis() {
 			return elapsedMillis;
 		}
 
@@ -104,7 +104,7 @@ public class Problem {
 			nTypes = Integer.parseInt(line[2]);
 
 			typeTasks = new int[nTypes];
-			costs = new float[nCells][nCells][nTypes][nPeriods];
+			costs = new int[nCells][nCells][nTypes][nPeriods];
 			tasksToDo = new int[nCells];
 			customers = new int[nCells][nTypes][nPeriods];
 
@@ -127,7 +127,7 @@ public class Problem {
 				for (int i = 0; i < nCells ; i++) {
 					line = in.readLine().split(" ");
 					for (int j = 0 ; j < nCells ; j++) {
-						costs[i][j][m][t] = Float.parseFloat(line[j]);
+						costs[i][j][m][t] = (int)Math.floor(Double.parseDouble(line[j]));
 					}
 				}
 			}
@@ -157,25 +157,25 @@ public class Problem {
 				}
 			}
 
-			System.out.println("TOTAL USERS: " + totalUsers);
-		System.out.println("TOTAL TASKS: " + totalTasks);
+			//System.out.println("TOTAL USERS: " + totalUsers);
+			//System.out.println("TOTAL TASKS: " + totalTasks);
 			in.close();			
 		} catch (IOException ioe) {
 			System.err.println("Unable to read file: " + inputFile);
 			ioe.printStackTrace();
 			System.exit(1);
 		}
-		
 
 		random = new Random();
 	}
 
-	/**
-	 * Uses Greedy Search to find a solution to the problem. To do that it scans each 
-	 * destination and looks for the cheapest users in order to execute all tasks.
-	 * 
-	 * @return a greedy solution
-	 */
+	public Solution solve(){
+		long start = System.nanoTime();
+		Solution s = randomSearch();
+		s.elapsedMillis = (int)((System.nanoTime() - start) / 1E+6f);
+		return s;
+	}
+
 	public Solution greedySearch() {
 		Solution greedy = new Solution();
 
@@ -190,7 +190,7 @@ public class Problem {
 			 *  can perform more tasks are given priority.
 			 */
 			while(greedy.fullfilled[j] < tasksToDo[j] && greedy.totalCustomers > 0) {
-				float wBestCost = Float.POSITIVE_INFINITY;
+				int wBestCost = Integer.MAX_VALUE;
 				int[] bestUser = {-1, -1, -1};
 
 				for (int i = 0 ; i < nCells ; i++) {
@@ -199,8 +199,8 @@ public class Problem {
 
 					for (int m = 0 ; m < nTypes ; m++) {
 						for (int t = 0 ; t < nPeriods ; t++) {
-							if (greedy.unassignedUsers[i][m][t] > 0 && costs[i][j][m][t] / typeTasks[m] < wBestCost) {
-								wBestCost = costs[i][j][m][t] / typeTasks[m];
+							if (greedy.unassignedUsers[i][m][t] > 0 && costs[i][j][m][t] < wBestCost) {
+								wBestCost = costs[i][j][m][t];
 								bestUser[0] = i;
 								bestUser[1] = m;
 								bestUser[2] = t;
@@ -224,7 +224,7 @@ public class Problem {
 				greedy.totalCustomers -= dispatchable;
 				greedy.totalCost += costs[iBest][j][mBest][tBest] * dispatchable;
 				greedy.solMatrix[iBest][j][mBest][tBest] += dispatchable;
-				System.out.println(String.format("CHEAPEST: %d %d %d | ASSIGNED TO %d: %d", iBest, mBest, tBest, j, dispatchable));
+				//System.out.println(String.format("CHEAPEST: %d %d %d | ASSIGNED TO %d: %d", iBest, mBest, tBest, j, dispatchable));
 			}
 		}
 
@@ -242,15 +242,8 @@ public class Problem {
 			int j = listJ.pop();
 			if (greedy.totalCustomers <= 0)
 				break;
-
-			/*
-			 *  Search the cheapest user category to go in cell J.
-			 *  To evaluate "cheapness" the actual cost of a user is divided
-			 *  by the number of tasks it can accomplish. In this way users who
-			 *  can perform more tasks are given priority.
-			 */
 			while(greedy.fullfilled[j] < tasksToDo[j] && greedy.totalCustomers > 0) {
-				float wBestCost = Float.POSITIVE_INFINITY;
+				int wBestCost = Integer.MAX_VALUE;
 				int[] bestUser = {-1, -1, -1};
 
 				for (int i = 0 ; i < nCells ; i++) {
@@ -259,8 +252,8 @@ public class Problem {
 
 					for (int m = 0 ; m < nTypes ; m++) {
 						for (int t = 0 ; t < nPeriods ; t++) {
-							if (greedy.unassignedUsers[i][m][t] > 0 && costs[i][j][m][t] / typeTasks[m] < wBestCost) {
-								wBestCost = costs[i][j][m][t] / typeTasks[m];
+							if (greedy.unassignedUsers[i][m][t] > 0 && costs[i][j][m][t] < wBestCost) {
+								wBestCost = costs[i][j][m][t];
 								bestUser[0] = i;
 								bestUser[1] = m;
 								bestUser[2] = t;
@@ -284,7 +277,7 @@ public class Problem {
 				greedy.totalCustomers -= dispatchable;
 				greedy.totalCost += costs[iBest][j][mBest][tBest] * dispatchable;
 				greedy.solMatrix[iBest][j][mBest][tBest] += dispatchable;
-				System.out.println(String.format("CHEAPEST: %d %d %d | ASSIGNED TO %d: %d", iBest, mBest, tBest, j, dispatchable));
+				//System.out.println(String.format("CHEAPEST: %d %d %d | ASSIGNED TO %d: %d", iBest, mBest, tBest, j, dispatchable));
 			}
 		}
 
@@ -307,8 +300,8 @@ public class Problem {
 		while(uncompleteCells > 0){
 			if(greedy.totalCustomers <= 0)
 				break;
-			System.out.println("Uncomplete: " + uncompleteCells);
-			System.out.println("Iteration " + index++);
+			//System.out.println("Uncomplete: " + uncompleteCells);
+			//System.out.println("Iteration " + index++);
 			for(Integer j : listJ){
 				//System.out.println(String.format("J: %d, Done: %d, ToDo: %d", j, greedy.fullfilled[j], tasksToDo[j]));
 				if(greedy.fullfilled[j] < tasksToDo[j]){
@@ -316,14 +309,14 @@ public class Problem {
 					int tasksInThisIteration = 1;
 					//System.out.println("In this iteration: " + tasksInThisIteration);
 					while(tasksInThisIteration > 0 && greedy.totalCustomers > 0) {
-						float wBestCost = Float.POSITIVE_INFINITY;
+						int wBestCost = Integer.MAX_VALUE;
 						int[] bestUser = {-1, -1, -1};
 						for (int i = 0 ; i < nCells ; i++) {
 							if (i != j){
 								for (int m = 0 ; m < nTypes ; m++) {
 									for (int t = 0 ; t < nPeriods ; t++) {
-										if (greedy.unassignedUsers[i][m][t] > 0 && costs[i][j][m][t] / typeTasks[m] < wBestCost) {
-											wBestCost = costs[i][j][m][t] / typeTasks[m];
+										if (greedy.unassignedUsers[i][m][t] > 0 && costs[i][j][m][t] < wBestCost) {
+											wBestCost = costs[i][j][m][t];
 											bestUser[0] = i;
 											bestUser[1] = m;
 											bestUser[2] = t;
@@ -363,7 +356,6 @@ public class Problem {
 	}
 	
 	public Solution randomSearch() {
-		long start = System.nanoTime();
 		Solution randomic = new Solution();
 		LinkedList<Integer> destinations = new LinkedList<Integer>();
 		
@@ -395,8 +387,6 @@ public class Problem {
 				}
 			}
 		}
-		
-		randomic.elapsedMillis = (System.nanoTime() - start) / 1E+6f;
 		
 		return randomic;
 	}
