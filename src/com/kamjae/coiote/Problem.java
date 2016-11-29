@@ -503,7 +503,7 @@ public class Problem {
 					if (u.i == j)
 						continue;
 					
-					float wCost = costs[u.i][j][u.m][u.t] / typeTasks[u.m];
+					float wCost = costs[u.i][j][u.m][u.t];// / typeTasks[u.m];
 					if (wCost < wBestCost) {
 						wBestCost = wCost;
 						bestUser = u;
@@ -558,7 +558,7 @@ public class Problem {
 					if (u.i == j)
 						continue;
 					
-					float wCost = costs[u.i][j][u.m][u.t] / typeTasks[u.m];
+					float wCost = costs[u.i][j][u.m][u.t];
 					if (wCost < wBestCost) {
 						wBestCost = wCost;
 						bestUser = u;

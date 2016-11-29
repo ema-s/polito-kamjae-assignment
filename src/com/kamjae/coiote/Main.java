@@ -43,9 +43,14 @@ public class Main {
 				BufferedReader in = new BufferedReader(new FileReader(optimal));
 				String line;
 				
+				String[] sourcePath = source.split("/");
+				String fileName = sourcePath[sourcePath.length - 1].split("\\.")[0];
+				System.out.println("FILENAME: "+fileName);
+				
 				while ((line = in.readLine()) != null) {
 					String[] vals = line.split(String.format(";\t"));
-					if (source.contains(vals[0])) {
+					if (fileName.equals(vals[0])) {
+						System.out.println("OPT_FILE: " + vals[0]);
 						float opCost = Float.parseFloat(vals[2]);
 						float opGap = (sol.getTotalCost() - opCost) / opCost * 100;
 						System.out.println("OPTIMALITY GAP: " + opGap + "%");
